@@ -1,15 +1,12 @@
 import csv
 import chardet
 from pinecone_utils import upload_to_pinecone
-
-
 def detect_encoding(filepath):
     """自动检测文件编码"""
     with open(filepath, 'rb') as f:
         raw = f.read(10000)
     result = chardet.detect(raw)
     return result['encoding']
-
 
 def load_csv_data(filepath: str):
     """
