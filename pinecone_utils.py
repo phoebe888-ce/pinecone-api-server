@@ -7,12 +7,16 @@ from dotenv import load_dotenv
 from openai import OpenAI
 load_dotenv()
 # 加载环境变量
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
-PINECONE_REGION = os.getenv("PINECONE_REGION", "us-east-1")  # 默认值为 us-east-1, "us-east-1"
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+# PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
+# PINECONE_REGION = os.getenv("PINECONE_REGION", "us-east-1")  # 默认值为 us-east-1, "us-east-1"
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-
+OPENAI_API_KEY="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"
+PINECONE_API_KEY="pcsk_25PkuV_MHzTBASR6ghdt7sv4CDpEfjCsFmpTbd2fr2GihuyJtRLZvPpm2i1jLDCan4jJAY"
+PINECONE_ENVIRONMENT="aped-4627-b74a"
+PINECONE_INDEX_NAME="gmail-qa-index"
+PINECONE_REGION="us-east-1"
 
 
 
