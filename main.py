@@ -36,8 +36,10 @@ def search_email(query: str = Query(..., description="用户查询的问题"), t
                     {
                         "id": r.id,
                         "score": r.score,
+                        "email_id":r.metadata["email_id"],
                         "subject": r.metadata.get("subject", ""),
-                        "summary": r.metadata.get("summary", ""),
+                        "summary": r.metadata.get("email_summary", ""),
+                        "issue_type":r.metadata.get("issue_type",""),
                         "ideal_reply": r.metadata.get("ideal_reply", "")
                     }
                     for r in results
