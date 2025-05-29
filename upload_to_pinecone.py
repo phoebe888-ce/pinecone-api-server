@@ -25,7 +25,8 @@ def load_csv_data(filepath: str):
                 "email_id": row["Email ID"],
                 "sender": row["Sender"],
                 "ideal_reply": row["Ideal Reply"],
-                "issue_type": row["Issue Type"]
+                "issue_type": row["Issue Type"],
+                "email_summary": row["Email Summary"]
             }
             data.append({"id": row["Email ID"], "text": text, "metadata": metadata})
     return data
