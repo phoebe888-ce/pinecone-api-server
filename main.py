@@ -1,13 +1,14 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
-from pinecone_utils import query_pinecone
+from typing import List, Dict, Any
+from pinecone_utils import query_pinecone, upload_to_pinecone  # 你的工具模块
 
 app = FastAPI()
 
-# CORS 中间件支持（如果用 n8n 或 Web 前端访问 API）
+# CORS 支持
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 可以设置为你的前端地址
+    allow_origins=["*"],  # 生产环境请改为指定域名
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -16,7 +17,6 @@ app.add_middleware(
 @app.get("/")
 def health_check():
     return {"message": "Pinecone Semantic Search API is running"}
-
 
 @app.get("/search")
 def search_email(query: str = Query(..., description="用户查询的问题"), top_k: int = 5):
@@ -41,4 +41,28 @@ def search_email(query: str = Query(..., description="用户查询的问题"), t
         }
     except Exception as e:
         print(f"❌ 查询失败: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+
+@app.post("/upsert")
+def upsert_vectors(vectors: List[Dict[str, Any]] = Body(..., description="向量列表，每个包含 id, values, metadata")):
+    """
+    批量上传向量到 Pinecone
+    请求体示例：
+    [
+        {
+            "id": "email_001",
+            "values": [0.01, 0.02, ..., 0.1536],
+            "metadata": {
+                "email_id": "email_001",
+                "subject": "邮件主题",
+                ...
+            }
+        }
+    ]
+    """
+    try:
+        upload_to_pinecone(vectors)
+        return {"message": f"成功上传 {len(vectors)} 条向量"}
+    except Exception as e:
+        print(f"❌ 上传失败: {e}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
