@@ -5,21 +5,16 @@ from uuid import uuid4
 from pinecone import Pinecone, ServerlessSpec
 from dotenv import load_dotenv
 from openai import OpenAI
+from datetime import datetime
+
 load_dotenv()
-# 加载环境变量
+
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
-PINECONE_REGION = os.getenv("PINECONE_REGION", "us-east-1")  # 默认值为 us-east-1, "us-east-1"
+PINECONE_REGION = os.getenv("PINECONE_REGION", "us-east-1")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-
-
-
-
-# 初始化 Pinecone 客户端
 pc = Pinecone(api_key=PINECONE_API_KEY)
-
-# 自动创建索引（如不存在）
 if PINECONE_INDEX_NAME not in pc.list_indexes().names():
     print(f"📌 正在创建索引: {PINECONE_INDEX_NAME}")
     pc.create_index(
@@ -29,16 +24,11 @@ if PINECONE_INDEX_NAME not in pc.list_indexes().names():
         spec=ServerlessSpec(cloud="aws", region=PINECONE_REGION)
     )
 
-# 获取索引
 index = pc.Index(PINECONE_INDEX_NAME)
-
-# 初始化 OpenAI 客户端，添加超时控制和重试机制
 http_client = httpx.Client(timeout=10.0)
 openai_client = OpenAI(api_key=OPENAI_API_KEY, http_client=http_client)
 
-
 def get_embedding(text: str) -> List[float]:
-    """调用 OpenAI Embedding API 获取文本向量"""
     try:
         response = openai_client.embeddings.create(
             input=[text],
@@ -50,14 +40,9 @@ def get_embedding(text: str) -> List[float]:
         return embedding
     except Exception as e:
         print(f"❌ 获取嵌入失败: {e}")
-        return []  # 返回空表示失败
-
+        return []
 
 def upload_to_pinecone(data: List[Dict]):
-    """
-    向 Pinecone 上传向量数据
-    :param data: List of dicts, each must contain `id`, `text`, and optional `metadata`
-    """
     vectors = []
     for item in data:
         embedding = get_embedding(item["text"])
@@ -83,15 +68,32 @@ def upload_to_pinecone(data: List[Dict]):
     else:
         print("🚫 无有效向量可上传")
 
-
-def query_pinecone(query_text: str, top_k: int = 5) -> List[Dict]:
-    """查询 Pinecone 中最相似向量"""
+def query_pinecone(query_text: str, top_k: int = 5):
     embedding = get_embedding(query_text)
     if not embedding:
-        return []  # 嵌入失败
+        return []
     results = index.query(vector=embedding, top_k=top_k, include_metadata=True)
     return results.matches
 
+def save_reply_to_pinecone(data: Dict[str, str]):
+    thread_id = data.get("threadId", str(uuid4()))
+    customer_msg = data.get("customerMsg", "")
+    ai_reply = data.get("aiReply", "")
+    timestamp = data.get("timestamp") or datetime.utcnow().isoformat()
 
+    full_text = f"Customer: {customer_msg}\nAI: {ai_reply}"
+    embedding = get_embedding(full_text)
+    if not embedding:
+        raise ValueError("向量嵌入失败")
 
-
+    index.upsert(vectors=[{
+        "id": thread_id,
+        "values": embedding,
+        "metadata": {
+            "threadId": thread_id,
+            "customerMsg": customer_msg,
+            "aiReply": ai_reply,
+            "timestamp": timestamp
+        }
+    }])
+    print(f"✅ 已保存语义回复向量 threadId={thread_id}")
