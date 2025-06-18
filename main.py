@@ -59,3 +59,20 @@ def save_reply(reply: Dict[str, Any] = Body(...)):
     except Exception as e:
         print(f"❌ 写入失败: {e}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+
+@app.patch("/update-reply")
+async def update_reply(data: UpdateReplyRequest):
+    vector_id = data.threadId
+    new_reply = data.aiReply
+    # 检查是否存在该向量
+    try:
+        existing = pinecone_index.fetch(ids=[vector_id])
+        if vector_id in existing.vectors:
+            metadata = existing.vectors[vector_id].metadata
+            metadata["aiReply"] = new_reply
+            pinecone_index.upsert([
+                (vector_id, existing.vectors[vector_id].values, metadata)
+            ])
+            return {"status": "updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
