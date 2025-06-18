@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any
 
-from pinecone_utils import query_pinecone, upload_to_pinecone, save_reply_to_pinecone, pinecone_index
+from pinecone_utils import query_pinecone, upload_to_pinecone, save_reply_to_pinecone, index
 
 app = FastAPI()
 
@@ -15,6 +15,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ✅ 请求体模型定义
 class UpsertVector(BaseModel):
@@ -85,13 +86,13 @@ def save_reply(reply: SaveReply):
 @app.patch("/update-reply")
 def update_reply(data: UpdateReplyRequest):
     try:
-        existing = pinecone_index.fetch(ids=[data.threadId])
+        existing = index.fetch(ids=[data.threadId])
         if data.threadId in existing.vectors:
             old_vector = existing.vectors[data.threadId]
             updated_metadata = old_vector.metadata
             updated_metadata["aiReply"] = data.aiReply
 
-            pinecone_index.upsert([
+            index.upsert([
                 (data.threadId, old_vector.values, updated_metadata)
             ])
             return {"message": "✅ 成功更新回复"}
