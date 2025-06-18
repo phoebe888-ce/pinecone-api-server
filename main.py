@@ -1,28 +1,50 @@
 from fastapi import FastAPI, Query, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from typing import List, Dict, Any
-from pinecone_utils import query_pinecone, upload_to_pinecone, save_reply_to_pinecone
+
+from pinecone_utils import query_pinecone, upload_to_pinecone, save_reply_to_pinecone, pinecone_index
 
 app = FastAPI()
 
-# CORS 支持
+# 🚨 生产环境请限制 allow_origins 范围
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境请改为指定域名
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ✅ 请求体模型定义
+class UpsertVector(BaseModel):
+    id: str
+    values: List[float]
+    metadata: Dict[str, Any]
+
+class SaveReply(BaseModel):
+    threadId: str
+    customerMsg: str
+    aiReply: str
+    timestamp: str
+
+class UpdateReplyRequest(BaseModel):
+    threadId: str
+    aiReply: str
+
 @app.get("/")
 def health_check():
-    return {"message": "Pinecone Semantic Search API is running"}
+    return {"message": "✅ Pinecone Semantic Search API is running"}
 
 @app.get("/search")
 def search_email(query: str = Query(..., description="用户查询的问题"), top_k: int = 5):
     try:
-        print(f"🔍 接收到查询: {query}")
-        results = query_pinecone(query, top_k=top_k)
+        clean_query = query.strip().replace("\n", " ")
+        if not clean_query:
+            raise HTTPException(status_code=400, detail="Query must not be empty.")
+        print(f"🔍 接收到查询: {clean_query}")
+
+        results = query_pinecone(clean_query, top_k=top_k)
         print(f"✅ 查询成功，返回 {len(results)} 条结果")
 
         return {
@@ -40,39 +62,41 @@ def search_email(query: str = Query(..., description="用户查询的问题"), t
         }
     except Exception as e:
         print(f"❌ 查询失败: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        raise HTTPException(status_code=500, detail="A server error has occurred")
 
 @app.post("/upsert")
-def upsert_vectors(vectors: List[Dict[str, Any]] = Body(..., description="向量列表，每个包含 id, values, metadata")):
+def upsert_vectors(vectors: List[UpsertVector]):
     try:
-        upload_to_pinecone(vectors)
-        return {"message": f"成功上传 {len(vectors)} 条向量"}
+        upload_to_pinecone([v.dict() for v in vectors])
+        return {"message": f"✅ 成功上传 {len(vectors)} 条向量"}
     except Exception as e:
         print(f"❌ 上传失败: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        raise HTTPException(status_code=500, detail="上传失败")
 
 @app.post("/save-reply")
-def save_reply(reply: Dict[str, Any] = Body(...)):
+def save_reply(reply: SaveReply):
     try:
-        save_reply_to_pinecone(reply)
+        save_reply_to_pinecone(reply.dict())
         return {"message": "✅ 成功写入 Pinecone"}
     except Exception as e:
         print(f"❌ 写入失败: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        raise HTTPException(status_code=500, detail="写入失败")
 
 @app.patch("/update-reply")
-async def update_reply(data: UpdateReplyRequest):
-    vector_id = data.threadId
-    new_reply = data.aiReply
-    # 检查是否存在该向量
+def update_reply(data: UpdateReplyRequest):
     try:
-        existing = pinecone_index.fetch(ids=[vector_id])
-        if vector_id in existing.vectors:
-            metadata = existing.vectors[vector_id].metadata
-            metadata["aiReply"] = new_reply
+        existing = pinecone_index.fetch(ids=[data.threadId])
+        if data.threadId in existing.vectors:
+            old_vector = existing.vectors[data.threadId]
+            updated_metadata = old_vector.metadata
+            updated_metadata["aiReply"] = data.aiReply
+
             pinecone_index.upsert([
-                (vector_id, existing.vectors[vector_id].values, metadata)
+                (data.threadId, old_vector.values, updated_metadata)
             ])
-            return {"status": "updated"}
+            return {"message": "✅ 成功更新回复"}
+        else:
+            return {"message": "⚠️ 未找到指定 threadId"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ 更新失败: {e}")
+        raise HTTPException(status_code=500, detail="更新失败")
