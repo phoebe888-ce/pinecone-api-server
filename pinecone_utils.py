@@ -28,46 +28,46 @@ index = pc.Index(PINECONE_INDEX_NAME)
 http_client = httpx.Client(timeout=10.0)
 openai_client = OpenAI(api_key=OPENAI_API_KEY, http_client=http_client)
 
-def get_embedding(text: str) -> List[float]:
-    try:
-        response = openai_client.embeddings.create(
-            input=[text],
-            model=""
-                  ""
-        )
-        embedding = response.data[0].embedding
-        if len(embedding) != 1536:
-            raise ValueError("返回嵌入维度异常")
-        return embedding
-    except Exception as e:
-        print(f"❌ 获取嵌入失败: {e}")
-        return []
+# def get_embedding(text: str) -> List[float]:
+#     try:
+#         response = openai_client.embeddings.create(
+#             input=[text],
+#             model=""
+#                   ""
+#         )
+#         embedding = response.data[0].embedding
+#         if len(embedding) != 1536:
+#             raise ValueError("返回嵌入维度异常")
+#         return embedding
+#     except Exception as e:
+#         print(f"❌ 获取嵌入失败: {e}")
+#         return []
 
-def upload_to_pinecone(data: List[Dict]):
-    vectors = []
-    for item in data:
-        embedding = get_embedding(item["text"])
-        if not embedding:
-            print(f"⚠️ 跳过嵌入失败项: {item.get('id', '[无ID]')}")
-            continue
-
-        vector_id = item.get("id", str(uuid4()))
-        metadata = item.get("metadata", {})
-
-        vectors.append({
-            "id": vector_id,
-            "values": embedding,
-            "metadata": metadata
-        })
-
-    if vectors:
-        try:
-            index.upsert(vectors=vectors)
-            print(f"✅ 已上传 {len(vectors)} 条向量到 Pinecone")
-        except Exception as e:
-            print(f"❌ 向 Pinecone 上传失败: {e}")
-    else:
-        print("🚫 无有效向量可上传")
+# def upload_to_pinecone(data: List[Dict]):
+#     vectors = []
+#     for item in data:
+#         embedding = get_embedding(item["text"])
+#         if not embedding:
+#             print(f"⚠️ 跳过嵌入失败项: {item.get('id', '[无ID]')}")
+#             continue
+#
+#         vector_id = item.get("id", str(uuid4()))
+#         metadata = item.get("metadata", {})
+#
+#         vectors.append({
+#             "id": vector_id,
+#             "values": embedding,
+#             "metadata": metadata
+#         })
+#
+#     if vectors:
+#         try:
+#             index.upsert(vectors=vectors)
+#             print(f"✅ 已上传 {len(vectors)} 条向量到 Pinecone")
+#         except Exception as e:
+#             print(f"❌ 向 Pinecone 上传失败: {e}")
+#     else:
+#         print("🚫 无有效向量可上传")
 
 def query_pinecone(query_text: str, top_k: int = 5):
     embedding = get_embedding(query_text)

@@ -28,6 +28,7 @@ class SaveReply(BaseModel):
     customerMsg: str
     aiReply: str
     timestamp: str
+    embedding: List[float]
 
 class UpdateReplyRequest(BaseModel):
     threadId: str
@@ -37,33 +38,33 @@ class UpdateReplyRequest(BaseModel):
 def health_check():
     return {"message": "✅ Pinecone Semantic Search API is running"}
 
-@app.get("/search")
-def search_email(query: str = Query(..., description="用户查询的问题"), top_k: int = 5):
-    try:
-        clean_query = query.strip().replace("\n", " ")
-        if not clean_query:
-            raise HTTPException(status_code=400, detail="Query must not be empty.")
-        print(f"🔍 接收到查询: {clean_query}")
-
-        results = query_pinecone(clean_query, top_k=top_k)
-        print(f"✅ 查询成功，返回 {len(results)} 条结果")
-
-        return {
-            "matches": [
-                {
-                    "id": r.id,
-                    "score": r.score,
-                    "threadId": r.metadata.get("threadId", ""),
-                    "customerMsg": r.metadata.get("customerMsg", ""),
-                    "aiReply": r.metadata.get("aiReply", ""),
-                    "timestamp": r.metadata.get("timestamp", "")
-                }
-                for r in results
-            ]
-        }
-    except Exception as e:
-        print(f"❌ 查询失败: {e}")
-        raise HTTPException(status_code=500, detail="A server error has occurred")
+# @app.get("/search")
+# def search_email(query: str = Query(..., description="用户查询的问题"), top_k: int = 5):
+#     try:
+#         clean_query = query.strip().replace("\n", " ")
+#         if not clean_query:
+#             raise HTTPException(status_code=400, detail="Query must not be empty.")
+#         print(f"🔍 接收到查询: {clean_query}")
+#
+#         results = query_pinecone(clean_query, top_k=top_k)
+#         print(f"✅ 查询成功，返回 {len(results)} 条结果")
+#
+#         return {
+#             "matches": [
+#                 {
+#                     "id": r.id,
+#                     "score": r.score,
+#                     "threadId": r.metadata.get("threadId", ""),
+#                     "customerMsg": r.metadata.get("customerMsg", ""),
+#                     "aiReply": r.metadata.get("aiReply", ""),
+#                     "timestamp": r.metadata.get("timestamp", "")
+#                 }
+#                 for r in results
+#             ]
+#         }
+#     except Exception as e:
+#         print(f"❌ 查询失败: {e}")
+#         raise HTTPException(status_code=500, detail="A server error has occurred")
 
 @app.post("/upsert")
 def upsert_vectors(vectors: List[UpsertVector]):
