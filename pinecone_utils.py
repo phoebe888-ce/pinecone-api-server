@@ -32,7 +32,8 @@ def get_embedding(text: str) -> List[float]:
     try:
         response = openai_client.embeddings.create(
             input=[text],
-            model="text-embedding-3-small"
+            model=""
+                  ""
         )
         embedding = response.data[0].embedding
         if len(embedding) != 1536:
@@ -80,11 +81,14 @@ def save_reply_to_pinecone(data: Dict[str, str]):
     customer_msg = data.get("customerMsg", "")
     ai_reply = data.get("aiReply", "")
     timestamp = data.get("timestamp") or datetime.utcnow().isoformat()
+    embedding = data.get("embedding")
 
-    full_text = f"Customer: {customer_msg}\nAI: {ai_reply}"
-    embedding = get_embedding(full_text)
     if not embedding:
-        raise ValueError("向量嵌入失败")
+        raise ValueError("必须提供 embedding 字段")
+
+    # 确认 embedding 是列表，且长度合理
+    if not isinstance(embedding, list) or len(embedding) != 1536:
+        raise ValueError("embedding 格式不正确或维度异常")
 
     index.upsert(vectors=[{
         "id": thread_id,
