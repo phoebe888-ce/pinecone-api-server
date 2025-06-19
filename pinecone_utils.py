@@ -69,6 +69,33 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY, http_client=http_client)
 #     else:
 #         print("🚫 无有效向量可上传")
 
+def upload_to_pinecone(data: List[Dict]):
+    vectors = []
+    for item in data:
+        embedding = item.get("embedding")
+        if not embedding or not isinstance(embedding, list):
+            print(f"⚠️ 跳过无效或缺失 embedding 的项: {item.get('id', '[无ID]')}")
+            continue
+
+        vector_id = item.get("id", str(uuid4()))
+        metadata = item.get("metadata", {})
+
+        vectors.append({
+            "id": vector_id,
+            "values": embedding,
+            "metadata": metadata
+        })
+
+    if vectors:
+        try:
+            index.upsert(vectors=vectors)
+            print(f"✅ 已上传 {len(vectors)} 条向量到 Pinecone")
+        except Exception as e:
+            print(f"❌ 向 Pinecone 上传失败: {e}")
+    else:
+        print("🚫 无有效向量可上传")
+
+
 def query_pinecone(query_text: str, top_k: int = 5):
     embedding = get_embedding(query_text)
     if not embedding:
