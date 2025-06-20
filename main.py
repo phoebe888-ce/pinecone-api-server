@@ -33,6 +33,8 @@ class SaveReply(BaseModel):
 class UpdateReplyRequest(BaseModel):
     threadId: str
     aiReply: str
+    timestamp: str
+    embedding: List[float]
 
 @app.get("/")
 def health_check():
