@@ -89,18 +89,19 @@ def save_reply(reply: SaveReply):
 @app.patch("/update-reply")
 def update_reply(data: UpdateReplyRequest):
     try:
+        # 🔍 获取旧向量
         existing = index.fetch(ids=[data.threadId])
         if data.threadId in existing.vectors:
             old_vector = existing.vectors[data.threadId]
             updated_metadata = dict(old_vector.metadata)
-            # updated_metadata = old_vector.metadata
             updated_metadata["aiReply"] = data.aiReply
+            updated_metadata["timestamp"] = data.timestamp
 
-
+            # ⚠️ 不修改 embedding，只保留旧的向量值
             index.upsert([
-                (data.threadId, old_vector.values)
+                (data.threadId, old_vector.values, updated_metadata)
             ])
-            return {"message": "✅ 成功更新回复"}
+            return {"message": "✅ 成功更新回复内容，不更新 embedding"}
         else:
             return {"message": "⚠️ 未找到指定 threadId"}
     except Exception as e:
