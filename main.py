@@ -92,11 +92,13 @@ def update_reply(data: UpdateReplyRequest):
         existing = index.fetch(ids=[data.threadId])
         if data.threadId in existing.vectors:
             old_vector = existing.vectors[data.threadId]
-            updated_metadata = old_vector.metadata
+            updated_metadata = dict(old_vector.metadata)
+            # updated_metadata = old_vector.metadata
             updated_metadata["aiReply"] = data.aiReply
 
+
             index.upsert([
-                (data.threadId, old_vector.values, updated_metadata)
+                (data.threadId, old_vector.values)
             ])
             return {"message": "✅ 成功更新回复"}
         else:
